@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, kstDay } from "../supabase";
-import { APIS, DAYS, LIMITS } from "../config";
+import { APIS, DAYS, DB_LIMIT_BYTES, LIMITS, PHOTO_LIMIT_BYTES, PLAN_LABEL } from "../config";
 
 type Row = { day: string; api: string; calls: number; errors: number };
+type Storage = { photo_bytes: number; photo_count: number; db_bytes: number };
+const mb = (b: number) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(2)}GB` : `${(b / 1024 ** 2).toFixed(1)}MB`);
 
 const fmt = (n: number) => n.toLocaleString("ko-KR");
 
@@ -11,12 +13,18 @@ export default function UsagePage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [table, setTable] = useState(false);
+  const [storage, setStorage] = useState<Storage | null>(null);
 
   const days = useMemo(() => Array.from({ length: DAYS }, (_, i) => kstDay(i - DAYS + 1)), []);
   const today = days[days.length - 1];
 
   const load = useCallback(async () => {
     setLoading(true);
+    // 저장 용량 (실패해도 호출량은 그대로)
+    supabase.rpc("admin_storage_usage").then(({ data }) => {
+      const r = Array.isArray(data) ? data[0] : data;
+      setStorage(r ? { photo_bytes: Number(r.photo_bytes), photo_count: Number(r.photo_count), db_bytes: Number(r.db_bytes) } : null);
+    });
     const { data, error } = await supabase
       .from("api_usage_daily")
       .select("day,api,calls,errors")
@@ -78,6 +86,33 @@ export default function UsagePage() {
           );
         })}
       </div>
+
+      {storage && (
+        <div className="tiles">
+          {([
+            ["사진 저장 용량", storage.photo_bytes, PHOTO_LIMIT_BYTES, `사진 ${fmt(storage.photo_count)}개 (원본 + 목록용)`],
+            ["DB 크기", storage.db_bytes, DB_LIMIT_BYTES, "게시물 · 프로필 · 알림 등"],
+          ] as [string, number, number, string][]).map(([label, used, limit, sub]) => {
+            const ratio = used / limit;
+            const level = ratio >= 0.9 ? "critical" : ratio >= 0.7 ? "warning" : "good";
+            return (
+              <div className="card tile" key={label}>
+                <div className="tile-label">{label}</div>
+                <div className="tile-value">{mb(used)}<span>/ {mb(limit)}</span></div>
+                <div className="meter" aria-label={`${PLAN_LABEL} 한도의 ${Math.round(ratio * 100)}%`}>
+                  <div className={`meter-fill ${level}`} style={{ width: `${Math.min(100, ratio * 100)}%` }} />
+                </div>
+                <div className="tile-sub">
+                  {PLAN_LABEL} 한도의 {Math.round(ratio * 100)}%
+                  {level === "critical" && <strong className="status critical"> ▲ 한도 임박</strong>}
+                  {level === "warning" && <strong className="status warning"> ● 주의</strong>}
+                </div>
+                <div className="tile-sub muted">{sub}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="section-head">
         <h2>최근 {DAYS}일</h2>

@@ -20,3 +20,8 @@ export const LIMITS: { label: string; apis: string[]; perDay: number | null; not
 ];
 
 export const DAYS = 30;
+
+// Supabase 무료 요금제 한도 (Pro 로 올리면 바꿀 것). 저장 용량 칸의 기준
+export const PLAN_LABEL = "무료 요금제";
+export const PHOTO_LIMIT_BYTES = 1024 ** 3; // 사진(Storage) 1GB
+export const DB_LIMIT_BYTES = 500 * 1024 ** 2; // DB 500MB

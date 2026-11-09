@@ -206,3 +206,12 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .badge.good-badge { background: var(--good); }
 .btn-link { font-size: 14px; align-self: center; }
 @media (max-width: 560px) { .top nav { order: 3; width: 100%; overflow-x: auto; } }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.user-modal { width: min(640px, 100%); }
+.banner.critical-banner { background: color-mix(in srgb, var(--critical) 14%, transparent); border: 1px solid var(--critical); margin-right: 36px; }
+.user-posts { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.user-post { position: relative; padding: 0; aspect-ratio: 1; overflow: hidden; border-radius: 8px; display: grid; place-items: center; }
+.user-post img { width: 100%; height: 100%; object-fit: cover; }
+.user-post.is-hidden img { opacity: .45; }
+.badge.mini { position: absolute; top: 4px; left: 4px; font-size: 10px; padding: 1px 6px; }
