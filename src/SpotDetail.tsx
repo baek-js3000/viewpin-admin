@@ -79,6 +79,7 @@ export default function SpotDetail({ spot, author, reports = [], onClose, onChan
                 <a href={`https://www.google.com/maps?q=${spot.lat},${spot.lng}`} target="_blank" rel="noreferrer noopener">
                   {spot.lat.toFixed(5)}, {spot.lng.toFixed(5)} ↗
                 </a>
+                {spot.area_radius_m ? <span className="muted"> · 구역 반경 {spot.area_radius_m}m</span> : null}
               </dd>
               <dt>게시물 id</dt><dd className="mono">{spot.id}</dd>
             </dl>

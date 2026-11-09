@@ -4,9 +4,10 @@ export type Spot = {
   id: string; user_id: string; title: string; category: string; tags: string[];
   image_urls: string[]; thumb_urls: string[]; lat: number; lng: number;
   created_at: string; hidden_at: string | null; hidden_reason: string | null;
+  area_radius_m?: number | null; // 구역 핀 반경(m), 없으면 정확한 위치
 };
 
-export const SPOT_COLUMNS = "id,user_id,title,category,tags,image_urls,thumb_urls,lat,lng,created_at,hidden_at,hidden_reason";
+export const SPOT_COLUMNS = "id,user_id,title,category,tags,image_urls,thumb_urls,lat,lng,area_radius_m,created_at,hidden_at,hidden_reason";
 
 // 앱의 신고 사유와 같은 목록 (post_detail.dart _reportReasons)
 export const REASONS = ["스팸·광고", "부적절한 사진", "잘못된 위치·정보", "위험한 장소 안내", "저작권 침해", "기타"];

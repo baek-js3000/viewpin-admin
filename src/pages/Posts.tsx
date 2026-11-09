@@ -26,8 +26,8 @@ export default function PostsPage({ notify }: { notify: (m: string) => void }) {
       supabase.from("reports").select("spot_id,reason,reporter_id,created_at").order("created_at", { ascending: false }).limit(2000),
     ]);
     if (sp.error) {
-      setError(/hidden_at/.test(sp.error.message)
-        ? "게시물 관리용 칸이 아직 없습니다. supabase/admin_site.sql 을 SQL Editor 에서 다시 실행하십시오."
+      setError(/hidden_at|area_radius_m/.test(sp.error.message)
+        ? "게시물 칸이 아직 없습니다. supabase/admin_site.sql · area_pin.sql 을 SQL Editor 에서 실행하십시오."
         : `불러오지 못했습니다: ${sp.error.message}`);
       setLoading(false);
       return;
