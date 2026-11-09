@@ -231,3 +231,5 @@ tr.clickable:hover td { background: color-mix(in srgb, var(--accent) 6%, transpa
 .reply-compose { display: grid; gap: 8px; margin: 4px 0 6px; }
 .reply-compose .primary { justify-self: start; padding: 7px 14px; }
 td.wrap-cell { white-space: pre-wrap; min-width: 220px; max-width: 420px; word-break: break-word; }
+.inactive-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; padding: 12px 16px; }
+.inactive-bar .grow { flex: 1 1 220px; }

@@ -7,8 +7,13 @@ type Suspension = { reason: string; until: string | null; created_at: string; hi
 type User = {
   id: string; email: string; name: string; badge: string | null; created_at: string; last_sign_in_at: string | null;
   banned_until: string | null; providers: string[]; admin: boolean; posts: number; suspension: Suspension | null;
+  paying?: boolean;
 };
-type Filter = "all" | "suspended";
+type Filter = "all" | "suspended" | "inactive";
+const INACTIVE_DAYS: [number, string][] = [[365, "1년"], [730, "2년"]];
+// 장기 미접속(정리 대상): 운영자 · 결제 중이 아니고, 마지막 로그인(없으면 가입) 이 기간보다 오래됨
+const lastSeen = (u: User) => Date.parse(u.last_sign_in_at ?? u.created_at);
+const isInactive = (u: User, days: number) => !u.admin && !u.paying && lastSeen(u) < Date.now() - days * 86400000;
 
 const PROVIDER: Record<string, string> = { google: "구글", apple: "애플", email: "이메일", naver: "네이버" };
 const isBanned = (u: User) => !!u.banned_until && new Date(u.banned_until).getTime() > Date.now();
@@ -32,6 +37,8 @@ export default function UsersPage({ notify }: { notify: (m: string) => void }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<User | null>(null);
+  const [days, setDays] = useState(365);
+  const [cleaning, setCleaning] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,10 +59,34 @@ export default function UsersPage({ notify }: { notify: (m: string) => void }) {
   const list = useMemo(() => {
     const w = q.trim().toLowerCase();
     return users.filter((u) =>
-      (filter === "all" || isBanned(u)) &&
+      (filter === "all" || (filter === "suspended" ? isBanned(u) : isInactive(u, days))) &&
       (!w || `${u.name} ${u.email} ${u.id}`.toLowerCase().includes(w)));
   }, [users, q, filter]);
   const bannedCount = users.filter(isBanned).length;
+  const inactiveCount = users.filter((u) => isInactive(u, days)).length;
+
+  // 장기 미접속 미결제 계정 정리: 서버가 대상마다 다시 확인(운영자 · 결제 중 · 최근 접속은 건너뜀). 50명씩
+  const cleanUp = async () => {
+    const targets = list.filter((u) => isInactive(u, days));
+    if (!targets.length) return;
+    const label = INACTIVE_DAYS.find(([d]) => d === days)?.[1] ?? `${days}일`;
+    if (!window.confirm(`${label} 이상 접속하지 않은 미결제 계정 ${targets.length}명을 정리할까요?\n사진 · 게시물 · 좋아요 · 북마크 등 그 계정의 모든 정보가 지워지고 되돌릴 수 없습니다.`)) return;
+    setCleaning(true);
+    let deleted = 0;
+    const skipped: string[] = [];
+    try {
+      for (let i = 0; i < targets.length; i += 50) {
+        const r = await call({ action: "delete_inactive", days, user_ids: targets.slice(i, i + 50).map((u) => u.id) });
+        deleted += Number(r?.deleted ?? 0);
+        for (const k of (r?.skipped ?? []) as { why: string }[]) skipped.push(k.why);
+      }
+      notify(`${deleted}명을 정리했습니다${skipped.length ? ` · 건너뜀 ${skipped.length}명` : ""}.`);
+    } catch (e) {
+      notify(`정리하지 못했습니다: ${e instanceof Error ? e.message : e}`);
+    }
+    setCleaning(false);
+    await load();
+  };
 
   return (
     <section>
@@ -71,8 +102,21 @@ export default function UsersPage({ notify }: { notify: (m: string) => void }) {
         <div className="chips">
           <button className={filter === "all" ? "chip on" : "chip"} onClick={() => setFilter("all")}>전체 <span className="muted">{users.length}</span></button>
           <button className={filter === "suspended" ? "chip on" : "chip"} onClick={() => setFilter("suspended")}>이용 제한 <span className="muted">{bannedCount}</span></button>
+          <button className={filter === "inactive" ? "chip on" : "chip"} onClick={() => setFilter("inactive")}>장기 미접속(미결제) <span className="muted">{inactiveCount}</span></button>
         </div>
       </div>
+      {filter === "inactive" && (
+        <div className="card inactive-bar">
+          <span className="small">기간</span>
+          {INACTIVE_DAYS.map(([d, label]) => (
+            <button key={d} className={days === d ? "chip on" : "chip"} onClick={() => setDays(d)}>{label} 이상</button>
+          ))}
+          <span className="muted small grow">결제 중인 계정 · 운영자는 목록에 나오지 않고, 서버도 한 번 더 확인합니다.</span>
+          <button className="danger" disabled={cleaning || list.length === 0} onClick={cleanUp}>
+            {cleaning ? "정리하는 중…" : `목록 ${list.length}명 정리…`}
+          </button>
+        </div>
+      )}
       {error && <p className="error card">{error}</p>}
       {!loading && !error && list.length === 0 && <p className="card muted empty">해당하는 사용자가 없습니다.</p>}
 
@@ -80,7 +124,7 @@ export default function UsersPage({ notify }: { notify: (m: string) => void }) {
         {list.length > 0 && (
           <table>
             <thead>
-              <tr><th>이름</th><th>이메일</th><th>로그인</th><th>가입</th><th>최근 로그인</th><th className="num">게시물</th><th>상태</th></tr>
+              <tr><th>이름</th><th>이메일</th><th>로그인</th><th>가입</th><th>최근 로그인</th><th className="num">게시물</th><th>결제</th><th>상태</th></tr>
             </thead>
             <tbody>
               {list.map((u) => (
@@ -91,6 +135,7 @@ export default function UsersPage({ notify }: { notify: (m: string) => void }) {
                   <td>{when(u.created_at)}</td>
                   <td>{u.last_sign_in_at ? when(u.last_sign_in_at) : <span className="muted">–</span>}</td>
                   <td className="num">{u.posts}</td>
+                  <td>{u.paying ? <span className="badge good-badge">결제 중</span> : <span className="muted small">–</span>}</td>
                   <td>
                     {u.admin ? <span className="badge good-badge">운영자</span>
                       : isBanned(u) ? <span className="badge critical">이용 제한</span>

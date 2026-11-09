@@ -3,7 +3,10 @@ import { supabase } from "../supabase";
 import SpotDetail from "../SpotDetail";
 import { SPOT_COLUMNS, loadNames, thumbOf, when, type Spot } from "../spots";
 
-type Report = { id: string; spot_id: string; reporter_id: string; reason: string; created_at: string; spot: Spot | null };
+type Report = {
+  id: string; spot_id: string; reporter_id: string; reason: string; created_at: string; spot: Spot | null;
+  resolved_at: string | null; resolution: "dismissed" | "hidden" | null;
+};
 
 export default function ReportsPage({ notify }: { notify: (m: string) => void }) {
   const [reports, setReports] = useState<Report[]>([]);
@@ -17,7 +20,7 @@ export default function ReportsPage({ notify }: { notify: (m: string) => void })
     setLoading(true);
     const { data, error } = await supabase
       .from("reports")
-      .select(`id,spot_id,reporter_id,reason,created_at,spot:spots(${SPOT_COLUMNS})`)
+      .select(`id,spot_id,reporter_id,reason,created_at,resolved_at,resolution,spot:spots(${SPOT_COLUMNS})`)
       .order("created_at", { ascending: false })
       .limit(1000);
     if (error) {
@@ -34,15 +37,32 @@ export default function ReportsPage({ notify }: { notify: (m: string) => void })
 
   useEffect(() => { void load(); }, [load]);
 
-  // 게시물별로 묶음 (신고가 많은 게시물 먼저). 이미 숨긴 게시물은 기본으로 접어 둠
+  // 게시물별로 묶음 (신고가 많은 게시물 먼저). 처리 대기 = 아직 처리 안 된 신고가 있고 숨기지 않은 게시물
   const all = useMemo(() => {
     const m = new Map<string, Report[]>();
     for (const r of reports) if (r.spot) m.set(r.spot_id, [...(m.get(r.spot_id) ?? []), r]);
     return [...m.values()].sort((a, b) => b.length - a.length || b[0].created_at.localeCompare(a[0].created_at));
   }, [reports]);
-  const pending = all.filter((g) => !g[0].spot?.hidden_at);
-  const handled = all.filter((g) => g[0].spot?.hidden_at);
+  const isPending = (g: Report[]) => !g[0].spot?.hidden_at && g.some((r) => !r.resolved_at);
+  const pending = all.filter(isPending);
+  const handled = all.filter((g) => !isPending(g));
   const groups = showHidden ? all : pending;
+  const [closing, setClosing] = useState("");
+
+  // 신고 닫기(문제 없음): 이 게시물의 처리 안 된 신고를 모두 닫음 — 작성자에게 알리지 않음
+  const dismiss = async (spotId: string) => {
+    if (!window.confirm("이 게시물의 신고를 '문제 없음'으로 닫을까요? 게시물은 그대로 보이고 작성자에게 알리지 않습니다.")) return;
+    setClosing(spotId);
+    const { error } = await supabase.rpc("admin_dismiss_reports", { p_spot_id: spotId });
+    setClosing("");
+    if (error) {
+      return notify(/admin_dismiss_reports/.test(error.message)
+        ? "서버 함수가 아직 없습니다. supabase/admin_reports_users.sql 을 SQL Editor 에서 실행하십시오."
+        : `닫지 못했습니다: ${error.message}`);
+    }
+    notify("신고를 '문제 없음'으로 닫았습니다.");
+    await load();
+  };
 
   const nameOf = (id?: string) => (id && names[id]) || "포토그래퍼";
 
@@ -51,8 +71,8 @@ export default function ReportsPage({ notify }: { notify: (m: string) => void })
       <div className="section-head">
         <h1>신고</h1>
         <div className="actions">
-          <span className="muted small">처리 대기 {pending.length}개 · 숨김 처리 {handled.length}개</span>
-          <label className="small check"><input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} /> 숨긴 게시물도 보기</label>
+          <span className="muted small">처리 대기 {pending.length}개 · 처리함 {handled.length}개</span>
+          <label className="small check"><input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} /> 처리한 신고도 보기</label>
           <button className="ghost" onClick={load} disabled={loading}>{loading ? "불러오는 중…" : "새로고침"}</button>
         </div>
       </div>
@@ -63,8 +83,10 @@ export default function ReportsPage({ notify }: { notify: (m: string) => void })
         {groups.map((g) => {
           const s = g[0].spot!;
           const img = thumbOf(s);
+          const open = isPending(g);
+          const how = s.hidden_at ? "숨김으로 처리" : g.every((r) => r.resolution === "dismissed") ? "문제 없음으로 닫음" : "";
           return (
-            <article className={s.hidden_at ? "card report is-hidden" : "card report"} key={g[0].spot_id}>
+            <article className={open ? "card report" : "card report is-hidden"} key={g[0].spot_id}>
               <div className="thumb">{img ? <img src={img} alt="" loading="lazy" /> : <span className="muted">사진 없음</span>}</div>
               <div className="report-body">
                 <div className="report-head">
@@ -73,7 +95,7 @@ export default function ReportsPage({ notify }: { notify: (m: string) => void })
                 </div>
                 <div className="muted small">
                   {s.category} · 작성자 {nameOf(s.user_id)} · 올린 날 {when(s.created_at)}
-                  {s.hidden_at && <span className="badge warning inline">숨김</span>}
+                  {!open && how && <span className={`badge ${s.hidden_at ? "warning" : "good-badge"} inline`}>{how}</span>}
                 </div>
                 <ul>
                   {g.map((r) => (
@@ -83,7 +105,14 @@ export default function ReportsPage({ notify }: { notify: (m: string) => void })
                     </li>
                   ))}
                 </ul>
-                <button className="small-btn" onClick={() => setOpen(g)}>살펴보고 조치</button>
+                <div className="row">
+                  <button className="small-btn" onClick={() => setOpen(g)}>살펴보고 조치</button>
+                  {open && (
+                    <button className="small-btn" disabled={closing === g[0].spot_id} onClick={() => dismiss(g[0].spot_id)}>
+                      문제 없음(신고 닫기)
+                    </button>
+                  )}
+                </div>
               </div>
             </article>
           );
