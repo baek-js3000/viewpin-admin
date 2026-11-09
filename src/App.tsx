@@ -6,11 +6,12 @@ import ReportsPage from "./pages/Reports";
 import PostsPage from "./pages/Posts";
 import InquiriesPage from "./pages/Inquiries";
 import UsersPage from "./pages/Users";
+import AnnouncementsPage from "./pages/Announcements";
 
 const isAdmin = (s: Session | null) => s?.user?.app_metadata?.role === "admin";
 
-type Tab = "usage" | "posts" | "reports" | "inquiries" | "users";
-const TABS: [Tab, string][] = [["usage", "API 호출량"], ["posts", "게시물"], ["reports", "신고"], ["inquiries", "문의"], ["users", "사용자"]];
+type Tab = "usage" | "posts" | "reports" | "inquiries" | "users" | "announcements";
+const TABS: [Tab, string][] = [["usage", "API 호출량"], ["posts", "게시물"], ["reports", "신고"], ["inquiries", "문의"], ["users", "사용자"], ["announcements", "공지"]];
 const tabFromHash = (): Tab => (TABS.find(([k]) => `#${k}` === location.hash)?.[0] ?? "usage");
 
 export default function App() {
@@ -91,6 +92,7 @@ export default function App() {
         {tab === "reports" && <ReportsPage notify={setToast} />}
         {tab === "inquiries" && <InquiriesPage notify={setToast} />}
         {tab === "users" && <UsersPage notify={setToast} />}
+        {tab === "announcements" && <AnnouncementsPage notify={setToast} />}
       </main>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
