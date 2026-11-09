@@ -4,7 +4,7 @@ import SpotDetail from "../SpotDetail";
 import { SPOT_COLUMNS, loadNames, thumbOf, when, type Spot } from "../spots";
 
 type Filter = "all" | "visible" | "hidden" | "reported";
-type Rep = { spot_id: string; reason: string; reporter_id: string; created_at: string };
+type Rep = { spot_id: string; reason: string; reporter_id: string; created_at: string; resolved_at: string | null };
 
 const PAGE = 60;
 
@@ -23,7 +23,7 @@ export default function PostsPage({ notify }: { notify: (m: string) => void }) {
     setLoading(true);
     const [sp, rp] = await Promise.all([
       supabase.from("spots").select(SPOT_COLUMNS).order("created_at", { ascending: false }).limit(2000),
-      supabase.from("reports").select("spot_id,reason,reporter_id,created_at").order("created_at", { ascending: false }).limit(2000),
+      supabase.from("reports").select("spot_id,reason,reporter_id,created_at,resolved_at").order("created_at", { ascending: false }).limit(2000),
     ]);
     if (sp.error) {
       setError(/hidden_at|area_radius_m/.test(sp.error.message)
@@ -45,7 +45,8 @@ export default function PostsPage({ notify }: { notify: (m: string) => void }) {
 
   const repBy = useMemo(() => {
     const m = new Map<string, Rep[]>();
-    for (const r of reports) m.set(r.spot_id, [...(m.get(r.spot_id) ?? []), r]);
+    // 닫히지 않은 신고만 (문제 없음 · 숨김으로 처리한 신고는 '신고' 표시에서 뺌)
+    for (const r of reports) if (!r.resolved_at) m.set(r.spot_id, [...(m.get(r.spot_id) ?? []), r]);
     return m;
   }, [reports]);
 
