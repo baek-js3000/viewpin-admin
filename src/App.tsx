@@ -7,12 +7,13 @@ import PostsPage from "./pages/Posts";
 import InquiriesPage from "./pages/Inquiries";
 import UsersPage from "./pages/Users";
 import AnnouncementsPage from "./pages/Announcements";
+import StatsPage from "./pages/Stats";
 
 const isAdmin = (s: Session | null) => s?.user?.app_metadata?.role === "admin";
 
-type Tab = "usage" | "posts" | "reports" | "inquiries" | "users" | "announcements";
-const TABS: [Tab, string][] = [["usage", "API 호출량"], ["posts", "게시물"], ["reports", "신고"], ["inquiries", "문의"], ["users", "사용자"], ["announcements", "공지"]];
-const tabFromHash = (): Tab => (TABS.find(([k]) => `#${k}` === location.hash)?.[0] ?? "usage");
+type Tab = "stats" | "usage" | "posts" | "reports" | "inquiries" | "users" | "announcements";
+const TABS: [Tab, string][] = [["stats", "현황"], ["usage", "API 호출량"], ["posts", "게시물"], ["reports", "신고"], ["inquiries", "문의"], ["users", "사용자"], ["announcements", "공지"]];
+const tabFromHash = (): Tab => (TABS.find(([k]) => `#${k}` === location.hash)?.[0] ?? "stats");
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -41,7 +42,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    history.replaceState(null, "", tab === "usage" ? location.pathname : `#${tab}`);
+    history.replaceState(null, "", tab === "stats" ? location.pathname : `#${tab}`);
   }, [tab]);
 
   const login = async () => {
@@ -87,6 +88,7 @@ export default function App() {
         </div>
       </header>
       <main>
+        {tab === "stats" && <StatsPage go={setTab} />}
         {tab === "usage" && <UsagePage />}
         {tab === "posts" && <PostsPage notify={setToast} />}
         {tab === "reports" && <ReportsPage notify={setToast} />}

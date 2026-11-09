@@ -219,3 +219,7 @@ tr.clickable:hover td { background: color-mix(in srgb, var(--accent) 6%, transpa
 .compose input { width: 100%; }
 .compose .primary { justify-self: start; }
 .ann-preview { margin: 4px 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: pre-wrap; }
+.stat-tile { text-align: left; font: inherit; color: inherit; }
+.stat-tile:disabled { cursor: default; opacity: 1; }
+.clickable-tile:hover { border-color: var(--muted); }
+.small-dot { font-size: 12px; margin-left: 8px; letter-spacing: 0; vertical-align: middle; }

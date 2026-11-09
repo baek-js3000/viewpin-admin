@@ -157,7 +157,7 @@ export default function UsagePage() {
   );
 }
 
-function BarChart({ title, days, values, errors }: { title: string; days: string[]; values: number[]; errors: number[] }) {
+export function BarChart({ title, days, values, errors, unit = "건" }: { title: string; days: string[]; values: number[]; errors: number[]; unit?: string }) {
   const [hover, setHover] = useState<number | null>(null);
   const W = 300, H = 120, PAD_B = 18, PAD_T = 8;
   const max = Math.max(1, ...values);
@@ -170,10 +170,10 @@ function BarChart({ title, days, values, errors }: { title: string; days: string
     <figure className="card chart">
       <figcaption>
         <span>{title}</span>
-        <span className="muted small">{days.length}일 합계 {fmt(total)}건</span>
+        <span className="muted small">{days.length}일 합계 {fmt(total)}{unit}</span>
       </figcaption>
       <div className="chart-box">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title} 최근 ${days.length}일 호출 수, 최대 ${fmt(max)}건`}
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title} 최근 ${days.length}일, 최대 ${fmt(max)}${unit}`}
           onMouseLeave={() => setHover(null)}>
           <line x1={0} x2={W} y1={H - PAD_B} y2={H - PAD_B} className="axis" />
           <text x={0} y={PAD_T - 1} className="tick">{fmt(max)}</text>
@@ -198,7 +198,7 @@ function BarChart({ title, days, values, errors }: { title: string; days: string
         {hover != null && (
           <div className="tooltip" style={{ left: `${((hover + 0.5) / values.length) * 100}%` }}>
             <div className="muted">{days[hover]}</div>
-            <strong>{fmt(values[hover])}건</strong>
+            <strong>{fmt(values[hover])}{unit}</strong>
             {errors[hover] > 0 && <div className="muted">실패 {fmt(errors[hover])}건</div>}
           </div>
         )}
