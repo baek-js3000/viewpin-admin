@@ -193,3 +193,10 @@ button.danger-ghost { background: transparent; color: var(--critical); border-co
   .photo-pane { min-height: 240px; }
 }
 .info-pane > .banner { margin-right: 36px; } /* 닫기 버튼과 겹치지 않게 */
+textarea {
+  font: inherit; color: var(--text); background: var(--surface); width: 100%;
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; resize: vertical; line-height: 1.5;
+}
+textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.counter { text-align: right; margin-top: -4px; }
+.actions-box .chips .chip { font-size: 12px; padding: 3px 10px; }

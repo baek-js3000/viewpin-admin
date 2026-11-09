@@ -24,20 +24,27 @@ export function storagePathOf(url: string): string | null {
   return decodeURIComponent(url.slice(i + marker.length).split("?")[0]);
 }
 
-export async function setHidden(spotId: string, reason: string | null) {
-  const { error } = await supabase.rpc("admin_set_spot_hidden", { p_spot_id: spotId, p_reason: reason });
-  if (error) throw new Error(error.message);
+export type Action = "hidden" | "unhidden" | "deleted";
+export const REASON_MAX = 500;
+
+/** 숨기기 · 숨김 풀기 · 삭제 + 작성자에게 사유 안내 (서버 함수 admin_moderate_spot 이 한 번에 처리) */
+async function moderate(spotId: string, action: Action, reason: string) {
+  const { error } = await supabase.rpc("admin_moderate_spot", { p_spot_id: spotId, p_action: action, p_reason: reason });
+  if (error) throw new Error(/admin_moderate_spot/.test(error.message)
+    ? "서버 함수가 아직 없습니다. supabase/admin_site.sql 을 SQL Editor 에서 다시 실행하십시오."
+    : error.message);
 }
 
-/** 게시물 삭제: 행 → 사진. 사진 삭제가 실패해도 게시물은 지워진 상태 (메시지로 알림) */
-export async function deleteSpot(s: Spot): Promise<string> {
-  const { error, count } = await supabase.from("spots").delete({ count: "exact" }).eq("id", s.id);
-  if (error) throw new Error(error.message);
-  if (!count) throw new Error("지워진 게시물이 없습니다(권한 또는 이미 삭제됨).");
+export const hideSpot = (s: Spot, reason: string) => moderate(s.id, "hidden", reason);
+export const unhideSpot = (s: Spot, message: string) => moderate(s.id, "unhidden", message);
+
+/** 게시물 삭제: 서버에서 행 삭제 + 안내 → 사진 삭제. 사진 삭제가 실패해도 게시물은 지워진 상태 (메시지로 알림) */
+export async function deleteSpot(s: Spot, reason: string): Promise<string> {
+  await moderate(s.id, "deleted", reason);
   const paths = [...new Set([...(s.image_urls ?? []), ...(s.thumb_urls ?? [])].map(storagePathOf).filter((p): p is string => !!p))];
   if (!paths.length) return "";
-  const { error: e2 } = await supabase.storage.from("spot-photos").remove(paths);
-  return e2 ? `게시물은 지웠지만 사진 일부를 지우지 못했습니다: ${e2.message}` : "";
+  const { error } = await supabase.storage.from("spot-photos").remove(paths);
+  return error ? `게시물은 지웠지만 사진 일부를 지우지 못했습니다: ${error.message}` : "";
 }
 
 export async function loadNames(ids: string[]): Promise<Record<string, string>> {

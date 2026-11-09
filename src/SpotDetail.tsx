@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { REASONS, deleteSpot, setHidden, when, type Spot } from "./spots";
+import { REASONS, REASON_MAX, deleteSpot, hideSpot, unhideSpot, when, type Spot } from "./spots";
 
 type Props = {
   spot: Spot;
@@ -11,8 +11,8 @@ type Props = {
 
 export default function SpotDetail({ spot, author, reports = [], onClose, onChanged }: Props) {
   const [i, setI] = useState(0);
-  const [reason, setReason] = useState(reports[0]?.reason && REASONS.includes(reports[0].reason) ? reports[0].reason : REASONS[1]);
-  const [memo, setMemo] = useState("");
+  // 작성자에게 그대로 전달되는 사유 (운영자가 직접 씀). 신고가 있으면 첫 신고 사유로 시작, 숨김 풀기는 빈 칸
+  const [reason, setReason] = useState(spot.hidden_at ? "" : (reports[0]?.reason ?? ""));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -40,7 +40,7 @@ export default function SpotDetail({ spot, author, reports = [], onClose, onChan
     }
   };
 
-  const hideReason = memo.trim() ? `${reason} — ${memo.trim()}` : reason;
+  const text = reason.trim();
 
   return (
     <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -91,38 +91,47 @@ export default function SpotDetail({ spot, author, reports = [], onClose, onChan
             )}
 
             <div className="actions-box">
+              <label className="small" htmlFor="mod-reason">
+                <strong>{spot.hidden_at ? "작성자에게 보낼 말" : "작성자에게 보낼 사유"}</strong>
+                <span className="muted"> — 앱 알림 · 푸시로 그대로 전달됩니다</span>
+              </label>
+              <div className="chips" hidden={!!spot.hidden_at}>
+                {REASONS.filter((r) => r !== "기타").map((r) => (
+                  <button key={r} type="button" className="chip" onClick={() => setReason(r)}>{r}</button>
+                ))}
+              </div>
+              <textarea id="mod-reason" rows={4} maxLength={REASON_MAX} value={reason}
+                placeholder={spot.hidden_at ? "다시 공개하는 이유(선택)" : "예: 다른 사람의 얼굴이 크게 나온 사진이라 숨겼습니다. 얼굴을 가린 사진으로 다시 올려 주십시오."}
+                onChange={(e) => setReason(e.target.value)} />
+              <div className="small muted counter">{reason.length} / {REASON_MAX}</div>
+
               {spot.hidden_at ? (
-                <button disabled={busy} onClick={() => run(async () => { await setHidden(spot.id, null); return "숨김을 풀었습니다."; })}>
+                <button disabled={busy} onClick={() => run(async () => { await unhideSpot(spot, text); return "숨김을 풀고 작성자에게 알렸습니다."; })}>
                   숨김 풀기
                 </button>
               ) : (
-                <>
-                  <label className="small muted" htmlFor="hide-reason">숨기는 사유</label>
-                  <div className="row">
-                    <select id="hide-reason" value={reason} onChange={(e) => setReason(e.target.value)}>
-                      {REASONS.map((r) => <option key={r}>{r}</option>)}
-                    </select>
-                    <input placeholder="메모(선택)" value={memo} maxLength={150} onChange={(e) => setMemo(e.target.value)} />
-                  </div>
-                  <button className="warn" disabled={busy} onClick={() => run(async () => { await setHidden(spot.id, hideReason); return "게시물을 숨겼습니다. 앱에서는 작성자 본인에게만 보입니다."; })}>
-                    숨기기
-                  </button>
-                </>
+                <button className="warn" disabled={busy || !text} title={text ? "" : "사유를 입력하십시오"}
+                  onClick={() => run(async () => { await hideSpot(spot, text); return "게시물을 숨기고 작성자에게 사유를 보냈습니다."; })}>
+                  숨기기
+                </button>
               )}
 
               {!confirmDelete ? (
-                <button className="danger-ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>게시물 삭제…</button>
+                <button className="danger-ghost" disabled={busy || !text} title={text ? "" : "사유를 입력하십시오"} onClick={() => setConfirmDelete(true)}>
+                  게시물 삭제…
+                </button>
               ) : (
                 <div className="confirm">
-                  <p className="small">사진 · 신고 · 좋아요 · 북마크까지 모두 지워지고 되돌릴 수 없습니다.</p>
+                  <p className="small">사진 · 신고 · 좋아요 · 북마크까지 모두 지워지고 되돌릴 수 없습니다. 작성자에게 위 사유가 전달됩니다.</p>
                   <div className="row">
                     <button disabled={busy} onClick={() => setConfirmDelete(false)}>취소</button>
-                    <button className="danger" disabled={busy} onClick={() => run(async () => { const w = await deleteSpot(spot); onClose(); return w || "게시물을 삭제했습니다."; })}>
+                    <button className="danger" disabled={busy || !text} onClick={() => run(async () => { const w = await deleteSpot(spot, text); onClose(); return w || "게시물을 삭제하고 작성자에게 사유를 보냈습니다."; })}>
                       영구 삭제
                     </button>
                   </div>
                 </div>
               )}
+              {!text && !spot.hidden_at && <p className="small muted">숨기기 · 삭제는 사유를 써야 할 수 있습니다.</p>}
               {error && <p className="error small">{error}</p>}
             </div>
           </div>
