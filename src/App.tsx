@@ -4,11 +4,12 @@ import { supabase } from "./supabase";
 import UsagePage from "./pages/Usage";
 import ReportsPage from "./pages/Reports";
 import PostsPage from "./pages/Posts";
+import InquiriesPage from "./pages/Inquiries";
 
 const isAdmin = (s: Session | null) => s?.user?.app_metadata?.role === "admin";
 
-type Tab = "usage" | "posts" | "reports";
-const TABS: [Tab, string][] = [["usage", "API 호출량"], ["posts", "게시물"], ["reports", "신고"]];
+type Tab = "usage" | "posts" | "reports" | "inquiries";
+const TABS: [Tab, string][] = [["usage", "API 호출량"], ["posts", "게시물"], ["reports", "신고"], ["inquiries", "문의"]];
 const tabFromHash = (): Tab => (TABS.find(([k]) => `#${k}` === location.hash)?.[0] ?? "usage");
 
 export default function App() {
@@ -87,6 +88,7 @@ export default function App() {
         {tab === "usage" && <UsagePage />}
         {tab === "posts" && <PostsPage notify={setToast} />}
         {tab === "reports" && <ReportsPage notify={setToast} />}
+        {tab === "inquiries" && <InquiriesPage notify={setToast} />}
       </main>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

@@ -200,3 +200,9 @@ textarea {
 textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .counter { text-align: right; margin-top: -4px; }
 .actions-box .chips .chip { font-size: 12px; padding: 3px 10px; }
+.inquiry { display: grid; gap: 6px; }
+.inquiry.is-done { opacity: .7; }
+.inquiry-body { white-space: pre-wrap; word-break: break-word; margin: 6px 0; line-height: 1.6; }
+.badge.good-badge { background: var(--good); }
+.btn-link { font-size: 14px; align-self: center; }
+@media (max-width: 560px) { .top nav { order: 3; width: 100%; overflow-x: auto; } }
